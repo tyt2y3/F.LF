@@ -4,6 +4,7 @@
 define(['LF/livingobject','LF/global','F.core/util'],
 function(livingobject_template, Global, Futil)
 {
+	// gameplay constants, some defaults
 	var GC=Global.gameplay;
 
 	var states=
