@@ -1,4 +1,4 @@
-/** a template of a living object
+/** a template class of a living object
  */
 define(['LF/global','data/specification','LF/sprite','LF/mechanics','F.core/combodec'],
 function ( Global, Spec, Sprite, Mech, Fcombodec)
@@ -354,6 +354,11 @@ function livingobject_template (template)
 	livingobject.prototype.proper = function(id,prop)
 	{
 		var $=this;
+		if( arguments.length===1)
+		{
+			prop=id;
+			id=$.id;
+		}
 		if( Spec[id])
 			return Spec[id][prop];
 		return null;
