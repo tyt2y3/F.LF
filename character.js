@@ -76,9 +76,21 @@ function(livingobject_template, Global, Futil)
 						$.trans.frame(9, 10);
 				break;
 				case 'def':
+					if( $.hold.obj && $.hold.obj.type==='heavyweapon')
+						return ;
 					$.trans.frame(110, 10);
 				break;
 				case 'jump':
+					if( $.hold.obj && $.hold.obj.type==='heavyweapon')
+					{
+						if( !$.proper('heavy_weapon_jump'))
+							return ;
+						else
+						{
+							$.trans.frame($.proper('heavy_weapon_jump'), 10);
+							return ;
+						}
+					}
 					$.trans.frame(210, 10);
 				break;
 				case 'att':
@@ -223,10 +235,22 @@ function(livingobject_template, Global, Futil)
 				break;
 
 				case 'def':
+					if( $.hold.obj && $.hold.obj.type==='heavyweapon')
+						return ;
 					$.trans.frame(102, 10);
 				break;
 
 				case 'jump':
+					if( $.hold.obj && $.hold.obj.type==='heavyweapon')
+					{
+						if( !$.proper('heavy_weapon_dash'))
+							return ;
+						else
+						{
+							$.trans.frame($.proper('heavy_weapon_dash'), 10);
+							return ;
+						}
+					}
 					$.trans.frame(213, 10);
 				break;
 
@@ -319,7 +343,7 @@ function(livingobject_template, Global, Futil)
 			case 'combo':
 				if( K==='att')
 				{
-					if( $.proper($.id,'dash_backatt') || //back attack
+					if( $.proper('dash_backattack') || //back attack
 						$.dirh()===($.ps.vx>0?1:-1)) //if not turning back
 					{
 						if( $.hold.obj && $.proper($.hold.id,'attackable')) //light weapon attack
@@ -404,7 +428,7 @@ function(livingobject_template, Global, Futil)
 					if( $.frame.D.cpoint.injury)
 					{
 						$.catching.hit( $.frame.D.cpoint, $, {x:$.ps.x,y:$.ps.y,z:$.ps.z}, null);
-						$.trans.inc_wait(1, 10, 99);
+						$.trans.inc_wait(1, 10, 99); //lock until frame transition
 					}
 					//cover
 					var cover = GC.default.cpoint.cover;
@@ -474,7 +498,7 @@ function(livingobject_template, Global, Futil)
 			case 'frame':
 				$.state10={};
 				$.state10.frameTU=true;
-				$.trans.set_wait(99, 10, 99);
+				$.trans.set_wait(99, 10, 99); //lock until frame transition
 				$.frame.mobility=0; //never moves
 			break;
 
@@ -540,7 +564,7 @@ function(livingobject_template, Global, Futil)
 				switch($.frame.N)
 				{
 					case 220: case 222: case 224: case 226:
-						$.trans.inc_wait(2, 20, 99);
+						$.trans.inc_wait(2, 20, 99); //lock until frame transition
 						$.frame.mobility=0; //cannot move
 					break;
 				}
@@ -640,7 +664,7 @@ function(livingobject_template, Global, Futil)
 						}
 						else
 						{
-							$.trans.inc_wait(2, 10, 99);
+							$.trans.inc_wait(2, 10, 99); //lock until frame transition
 							$.trans.set_next(210, 10);
 						}
 					}
@@ -852,7 +876,7 @@ function(livingobject_template, Global, Futil)
 				{
 					if( hit[t].team !== $.team) //only catch other teams
 					if( hit[t].type==='character') //only catch characters
-					if( (ITR.kind===2 && hit[t].cur_state()===16) //you are in dance of pain
+					if( (ITR.kind===1 && hit[t].cur_state()===16) //you are in dance of pain
 					 || (ITR.kind===3)) //super catch
 					if( $.itr_rest_test( hit[t].uid, ITR))
 					{
@@ -946,6 +970,9 @@ function(livingobject_template, Global, Futil)
 			return [];
 	}
 
+	/** inter-living objects protocol: catch & throw
+		for details see http://f-lf2.blogspot.hk/2013/01/inter-living-object-interactions.html
+	 */
 	character.prototype.caught_a=function(ITR, att, attps)
 	{	//this is called when the catcher has an ITR with kind: 1
 		var $=this;
