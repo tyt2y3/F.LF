@@ -28,13 +28,13 @@ gamedata,Match,Keychanger){
 	{
 		up:'w',down:'x',left:'a',right:'d',def:'z',jump:'q',att:'s'
 	};
+
 	var control1 = new Fcontroller(control_con1);
 	var control2 = new Fcontroller(control_con2);
 	control1.sync=true;
 	control2.sync=true;
 
 	var keychanger = document.getElementById('keychanger');
-	keychanger.style.display='none';
 	Keychanger(keychanger, [control1, control2]);
 	keychanger.style.backgroundColor='#FFF';
 	keychanger.style.display='';
