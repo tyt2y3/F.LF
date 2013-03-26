@@ -1,26 +1,42 @@
 # F.LF - the open source LF2
 [http://f-lf2.blogspot.com](http://f-lf2.blogspot.com)
-F.LF is the show casting game for F.core. Where F.LF attempts a clean room implementation of the famous fighter game [LF2](http://lf2.net).
+F.LF attempts a clean room implementation of the famous fighter game [LF2](http://lf2.net). The F stands for [Project F](http://project--f.blogspot.hk).
 
-## Philosophy
-F.LF attempts to re- create LF2 in a web browser, and be an open source clean room implementation. F.LF respects original LF2 in every detail, that data file compatibilty and program behavior will be regarded carefully.
-F.LF will leverage web technologies as much as it can to make games "native to browsers".
+## Motivation & Philosophy
+
+Little Fighter 2 has received significant recognition and popularity since its initial release. Being the most sophisticated fighter game ever built, LF2 is also extremely customizable with its data file architecture. Over the years, numerous modifications have been made, ranged from spriting, data changing to exe editing. A vast amount of related work, including comics, animations and novels, have been created by thousands of people from all over the world, creating a strong and truly amazing community.
+
+It is very limiting of what we can do with a compiled executable even with techniques like exe editing. But development of LF2 has been dormant for some years while the author has no plan to open source it. To move forward, the community has to own a code base and have right and ability to develop on it. Let us take this first step to the continuity of LF2.
+
+F.LF attempts to re-create LF2 in a web browser, and be an open source clean room implementation. F.LF respects original LF2 in every detail, that data file compatibilty and program behavior will be regarded carefully. F.LF will leverage web technologies as much as it can to make games native to browsers.
+
 I believe the web, open source and fine software will enable anyone, from novices to experts, to create great interactive contents and bring them to any other one.
 
-## Compatibilty
+## Architecture
+The open LF2 project is divided into three repositories, [F.core](https://github.com/tyt2y3/F.core), F.LF and [LFrelease](https://github.com/tyt2y3/LFrelease). F.LF is the game engine which implements ___the LF2 standard___ and provides gaming functionalities. F.core provides the engine components to build a HTML5 game. While F.LF _could_ be platform independent, current implementation does depend a lot on the browser environment. LFrelease contains material (sprites,data,sound,etc) converted from original LF2. Such division is to ensure that F.LF is 100% original work containing no third party copyrighted material.
 
-### data files
-F.LF provide a [tool](http://tyt2y3.github.com/LFrelease/tools/data_file_converter.html) to convert xml-like LF2 data files into JSON.
+## Compatibility
+F.LF thrives for 99% compatibility with LF2. the current reference is LF2 1.451.
+- data
+	- F.LF provide a [tool](http://tyt2y3.github.com/LFrelease/tools/data_file_converter.html) to convert xml-like LF2 data files into JSON.
+- sprite
+	- LF2 sprite images are in 24bit bmp and must be converted to 24bit png with defined transparent index (or 32bit png with transparency). in addition, F.LF requires XXX.png to be mirrored into XXX_mirror.png.
+- sound
+	- LF2 sounds are in wav and must be converted to ogg and mp3 for use with HTML5 audio.
+- in general, materials should be compressed and converted to a format suitable for distribution and consumption on the web.
+- there is however plan to develop an automated build tool to convert entire package of all materials.
 
-### sprites
-LF2 sprite images in 24bit bmp must be converted to 32bit png with transparency.
-F.LF requires XXX.png to be mirrored into XXX_mirror.png.
+## Development
+F.LF is still in mid-stage development. Check out the latest demo at the [release channel](https://github.com/tyt2y3/LFrelease) or latest milestone at [f-lf2.blogspot.hk](http://f-lf2.blogspot.hk/search/label/latest-demo). For details read the [roadmap](https://github.com/tyt2y3/F.LF/blob/master/docs/developer.md#roadmap).
 
-## Status
-F.LF is still in mid-stage development. Check out the latest milestone at [f-lf2.blogspot.hk](http://f-lf2.blogspot.hk/search/label/latest-demo) or at the [release channel](https://github.com/tyt2y3/LFrelease).
+### Call for contributors
+F.LF has been a personal project for one year. Much of the foundational work has been done. May I now call for any one who love and know LF2 to involve in this project as programmer or tester to accelerate development and bring F.LF to production quality.
 
-## Install
-F.LF is built upon [F.core](https://github.com/tyt2y3/F.core). F.LF contains purely source code. Materials from LF2 is converted and contained in [LFrelease](https://github.com/tyt2y3/LFrelease). These repositories must be named and placed as below:
+### Test
+[nightly build](http://tyt2y3.github.com/LFrelease/demo/demo3.html)
+
+### Install
+The three repositories must be named and placed as below:
 ```
  F
  |---F.core
