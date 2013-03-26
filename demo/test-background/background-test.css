@@ -1,0 +1,41 @@
+#stage {
+	position: relative;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#status_bar {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 794px;
+	height: 150px;
+	background-color: blue;
+}
+
+#background_scene {
+	position: absolute;
+	top: 150px;
+	left: 0px;
+	width: 794px;
+	height: 215px;
+	background-color: yellow;
+}
+
+#floor_scene {
+	position: absolute;
+	top: 365px;
+	left: 0px;
+	width: 794px;
+	height: 140px;
+	background-color: red;
+}
+
+#footer_container {
+	position: absolute;
+	bottom: 0px;
+	left: 0px;
+	height: 45px;
+	width: 794px;
+	background-color: #CCC;
+}
