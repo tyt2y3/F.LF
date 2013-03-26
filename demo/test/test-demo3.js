@@ -35,6 +35,7 @@ gamedata,Match,Keychanger){
 	control2.sync=true;
 
 	var keychanger = document.getElementById('keychanger');
+	keychanger.style.display='none';
 	Keychanger(keychanger, [control1, control2]);
 	keychanger.style.backgroundColor='#FFF';
 	keychanger.style.display='';
