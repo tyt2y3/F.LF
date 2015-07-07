@@ -23,11 +23,12 @@ function weapon(type)
 		'generic':function(event,K)
 		{	var $=this;
 			switch (event) {
+
 			case 'TU':
 
 				$.interaction();
 
-				switch( $.state())
+				switch( $.cur_state())
 				{
 					case 1001:
 					case 2001:
@@ -54,7 +55,6 @@ function weapon(type)
 							ps.vy = GC.weapon.bounceup.speed.y;
 						if( ps.vx) ps.vx = (ps.vx>0?1:-1)*GC.weapon.bounceup.speed.x;
 						if( ps.vz) ps.vz = (ps.vz>0?1:-1)*GC.weapon.bounceup.speed.z;
-						$.health.hp -= $.data.bmp.weapon_drop_hurt;
 					}
 					else
 					{
@@ -64,29 +64,9 @@ function weapon(type)
 							$.trans.frame(70); //just_on_ground
 						if( $.heavy)
 							$.trans.frame(21); //just_on_ground
+						$.health.hp -= $.data.bmp.weapon_drop_hurt;
 					}
 					ps.zz=0;
-				}
-			break;
-			case 'die':
-				$.trans.frame(1000);
-				if( $.data.bmp.weapon_broken_sound)
-					$.match.sound.play($.data.bmp.weapon_broken_sound);
-				var static_body = $.mech.body($.data.frame[0].bdy)[0];
-				for( var i=0; i<8; i++)
-					$.match.brokeneffect.create(320,{x:$.ps.x,y:0,z:$.ps.z},$.id,i,static_body);
-			break;
-		}},
-
-		'1003':function(event,K) //light
-		{	var $=this;
-			switch (event) {
-			case 'frame':
-				if( $.frame.N===70) //just_on_ground
-				{
-					if( !$.frame.D.sound)
-						if( $.data.bmp.weapon_drop_sound)
-							$.match.sound.play($.data.bmp.weapon_drop_sound);
 				}
 			break;
 		}},
@@ -94,6 +74,7 @@ function weapon(type)
 		'1004':function(event,K) //light
 		{	var $=this;
 			switch (event) {
+
 			case 'frame':
 				if( $.frame.N===64) //on ground
 					$.team=0; //loses team
@@ -103,20 +84,17 @@ function weapon(type)
 		'2000':function(event,K) //heavy
 		{	var $=this;
 			switch (event) {
+
 			case 'frame':
 				if( $.frame.N === 21) //just_on_ground
-				{
 					$.trans.set_next(20);
-					if( !$.frame.D.sound)
-						if( $.data.bmp.weapon_drop_sound)
-							$.match.sound.play($.data.bmp.weapon_drop_sound);
-				}
 			break;
 		}},
 
 		'2004':function(event,K) //heavy
 		{	var $=this;
 			switch (event) {
+
 			case 'frame':
 				if( $.frame.N === 20) //on_ground
 					$.team=0;
@@ -139,10 +117,8 @@ function weapon(type)
 		}
 		$.hold=
 		{
-			obj: null, //character who hold me
-			pre: null  //previous holder
+			obj: null //character who hold me
 		};
-		$.health.hp = $.data.bmp.weapon_hp;
 		$.setup();
 	}
 	typeweapon.prototype = new livingobject();
@@ -159,13 +135,12 @@ function weapon(type)
 
 		if( $.team!==0)
 		if(($.heavy) ||
-		   ($.light && $.state()===1002))
+		   ($.light && $.cur_state()===1002))
 		for( var j in ITR)
 		{	//for each itr tag
 			if( ITR[j].kind===0) //kind 0
 			{
 				var vol=$.mech.volume(ITR[j]);
-				vol.zwidth = 0;
 				var hit= $.scene.query(vol, $, {tag:'body', not_team:$.team});
 				for( var k in hit)
 				{	//for each being hit
@@ -175,9 +150,16 @@ function weapon(type)
 					else
 						itr_rest=GC.default.weapon;
 					//if( itr_rest.arest) itr_rest.arest+=20; //what is this line for?
-					if( !$.itr.arest)
-					if( $.attacked(hit[k].hit(ITR[j],$,{x:$.ps.x,y:$.ps.y,z:$.ps.z},vol)))
+					//
+					/*console.log('I='+$.uid+', he='+hit[k].uid+
+						', arest='+itr_rest.arest+
+						', vrest='+itr_rest.vrest+
+						', itr.arest='+$.itr.arest+
+						', itr.vrest='+$.itr.vrest[hit[k].uid]);*/
+					if( $.itr_rest_test( hit[k].uid, itr_rest))
+					if( hit[k].hit(ITR[j],$,{x:$.ps.x,y:$.ps.y,z:$.ps.z},vol))
 					{	//hit you!
+						//console.log('hit'+'$.state='+$.cur_state());
 						var ps=$.ps;
 						var vx=(ps.vx===0?0:(ps.vx>0?1:-1));
 						if( $.light)
@@ -185,7 +167,7 @@ function weapon(type)
 							ps.vx = vx * GC.weapon.hit.vx;
 							ps.vy = GC.weapon.hit.vy;
 						}
-						$.itr_arest_update(ITR);
+						$.itr_rest_update( hit[k], hit[k].uid, itr_rest);
 						//create an effect
 						var timeout;
 						if( $.light) timeout=2;
@@ -200,25 +182,22 @@ function weapon(type)
 		}
 	}
 
-	/*\
-	 * caller hits callee
-	 - ITR the itr object in data
-	 - att reference of attacker
-	 - attps position of attacker
-	 - rect the hit rectangle where visual effects should appear
-	\*/
+	/** @protocol caller hits callee
+		@param ITR the itr object in data
+		@param att reference of attacker
+		@param attps position of attacker
+		@param rect the hit rectangle where visual effects should appear
+	 */
 	typeweapon.prototype.hit=function(ITR, att, attps, rect)
 	{
 		var $=this;
-		if( $.hold.obj)
-			return false;
-		if( $.itr.vrest[att.uid])
+		if( $.holder)
 			return false;
 
 		var accept=false;
 		if( $.light)
 		{
-			if( $.state()===1002) //throwing
+			if( $.cur_state()===1002) //throwing
 			{
 				accept=true;
 				if( (att.dirh()>0)!==($.ps.vx>0)) //head-on collision
@@ -227,7 +206,7 @@ function weapon(type)
 				$.ps.vz *= GC.weapon.reverse.factor.vz;
 				$.team = att.team; //change to the attacker's team
 			}
-			else if( $.state()===1004) //on_ground
+			else if( $.cur_state()===1004) //on_ground
 			{
 				//var asp = att.mech.speed();
 				//$.ps.vx= asp* GC.weapon.gain.factor.x * (att.ps.vx>0?1:-1);
@@ -244,7 +223,7 @@ function weapon(type)
 		var fall= ITR.fall!==undefined? ITR.fall: GC.default.fall.value;
 		if( $.heavy)
 		{
-			if( $.state()===2004) //on_ground
+			if( $.cur_state()===2004) //on_ground
 			{
 				accept=true;
 				if( fall<30)
@@ -259,7 +238,7 @@ function weapon(type)
 					$.trans.frame(999);
 				}
 			}
-			else if( $.state()===2000) //in_the_sky
+			else if( $.cur_state()===2000) //in_the_sky
 			{
 				if( fall>=GC.fall.KO)
 				{
@@ -273,24 +252,15 @@ function weapon(type)
 			}
 		}
 		if( accept)
-		{
 			$.visualeffect_create( 0, rect, (attps.x < $.ps.x), (fall<GC.fall.KO?1:2));
-			if( ITR && ITR.vrest)
-				$.itr.vrest[att.uid] = ITR.vrest;
-			if( ITR && ITR.injury)
-				$.health.hp -= ITR.injury;
-			if( $.data.bmp.weapon_hit_sound)
-				$.match.sound.play($.data.bmp.weapon_hit_sound);
-		}
 		return accept;
 	}
 
-	/*\
-	 * being held in a character's hand
-	 - att holder's reference
-	 - wpoint data
-	 - holdpoint data
-	\*/
+	/** @protocol being held in a character's hand
+		@param att holder's reference
+		@param wpoint data
+		@param holdpoint data
+	 */
 	typeweapon.prototype.act=function(att,wpoint,holdpoint)
 	{
 		var $=this;
@@ -329,7 +299,7 @@ function weapon(type)
 				if( $.heavy)
 					$.trans.frame(999);
 				$.trans.trans(); //update immediately
-				$.hold.obj=null;
+				$.holder=null;
 				result.thrown=true;
 			}
 
@@ -339,7 +309,7 @@ function weapon(type)
 				if( wpoint_cover===1)
 					$.ps.zz = -1;
 				else
-					$.ps.zz = 1;
+					$.ps.zz = 0;
 
 				$.switch_dir(att.ps.dir);
 				$.ps.sz = $.ps.z = att.ps.z;
@@ -358,12 +328,13 @@ function weapon(type)
 						if( ITR[j].kind===5) //kind 5 only
 						{
 							var vol=$.mech.volume(ITR[j]);
-							vol.zwidth = 0;
 							var hit= $.scene.query(vol, [$,att], {tag:'body', not_team:$.team});
 							for( var k in hit)
 							{	//for each being hit
-								if( !att.itr.arest)
+								if( $.itr_rest_test( hit[k].uid, ITR[j]) &&
+								  att.itr_rest_test( hit[k].uid, ITR[j]) )
 								{	//if rest allows
+									$.itr_rest_update( hit[k], hit[k].uid, ITR[j]);
 									var citr;
 									if( $.data.weapon_strength_list &&
 										$.data.weapon_strength_list[wpoint.attacking])
@@ -371,7 +342,7 @@ function weapon(type)
 									else
 										citr = ITR[j];
 
-									if( $.attacked(hit[k].hit(citr,att,{x:att.ps.x,y:att.ps.y,z:att.ps.z},vol)))
+									if( hit[k].hit(citr,att,{x:att.ps.x,y:att.ps.y,z:att.ps.z},vol))
 									{	//hit you!
 										if( citr.vrest)
 											result.vrest = citr.vrest;
@@ -395,7 +366,7 @@ function weapon(type)
 	{
 		var $=this;
 		$.team=0;
-		$.hold.obj=null;
+		$.holder=null;
 		if( dvx) $.ps.vx=dvx * 0.5; //magic number
 		if( dvy) $.ps.vy=dvy * 0.2;
 		$.ps.zz=0;
@@ -406,10 +377,9 @@ function weapon(type)
 	typeweapon.prototype.pick=function(att)
 	{
 		var $=this;
-		if( !$.hold.obj)
+		if( !$.holder)
 		{
-			$.hold.obj=att;
-			$.hold.pre=att;
+			$.holder=att;
 			$.team=att.team;
 			$.shadow.hide();
 			return true;
@@ -446,22 +416,6 @@ function weapon(type)
 			);
 		else
 			return $.mech.body_empty();
-	}
-
-	typeweapon.prototype.attacked=function(inj)
-	{
-		var $=this;
-		if( $.hold.pre)
-			return $.hold.pre.attacked(inj);
-		else
-			return inj===false?false:true;
-	}
-
-	typeweapon.prototype.killed=function()
-	{
-		var $=this;
-		if( $.hold.pre)
-			return $.hold.pre.killed();
 	}
 
 	return typeweapon;

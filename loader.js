@@ -4,7 +4,7 @@
  * loader is a requirejs plugin that loads content packages
 \*/
 
-define(['LF/global','F.core/util'],function(global,Futil){
+define(['LF/packages','LF/global'],function(packages,global){
 
 	return {
 		load: function (name, require, load, config)
@@ -18,25 +18,38 @@ define(['LF/global','F.core/util'],function(global,Futil){
 				load();
 				return ;
 			}
-			load_package(name);
+
+			var first,count=0;
+			for( var i in packages)
+			{
+				if( count===0)
+					first=i;
+				count++;
+			}
+			if( count===1)
+			{
+				load_package(packages[first]);
+			}
 
 			function load_package(pack)
 			{
-				path=normalize_path(pack);
+				path=normalize_path(pack.path);
 				content.location = normalize_path(config.baseUrl)+path;
-				require( [filepath('manifest')], function(mani)
+				require( [path+'manifest'], function(mani)
 				{
 					manifest=mani;
 					var manifest_schema=
 					{
 						"data":"string",
+						"properties":"string",
 						"resourcemap":"string!optional"
 					}
 					if( !validate(manifest_schema,manifest))
 					{
 						console.log('loader: error: manifest.js of '+path+' is not correct.');
 					}
-					require( [filepath(manifest.data)], load_data);
+					require( [path+normalize_file(manifest.data)], load_data);
+					load_something('properties');
 					load_something('resourcemap');
 				});
 			}
@@ -51,22 +64,21 @@ define(['LF/global','F.core/util'],function(global,Futil){
 					ppp=ppp.slice(1);
 				return ppp;
 			}
-			function filepath(ppp)
+			function normalize_file(ppp)
 			{
 				if( !ppp)
 					return '';
 				if( ppp.lastIndexOf('.js')===ppp.length-3)
 					ppp = ppp.slice(0,ppp.length-3);
-				var suf = path.indexOf('http')===0?'.js':'';
-				return path+ppp+suf;
+				return ppp;
 			}
 			function load_data(datalist)
 			{
-				function allow_load(folder,obj)
+				function allow_load(OO)
 				{
 					if( typeof global.lazyload==='function')
 					{
-						if( !global.lazyload(folder,obj))
+						if( !global.lazyload(OO))
 							return true;
 					}
 					else
@@ -74,63 +86,57 @@ define(['LF/global','F.core/util'],function(global,Futil){
 				}
 
 				var datafile_depend=[];
+				for( var i=0; i<datalist.object.length; i++)
+					if( allow_load(datalist.object[i]))
+						datafile_depend.push(path+normalize_file(datalist.object[i].file));
 
-				for( var i in datalist)
-				{
-					if( datalist[i] instanceof Array)
-					{
-						for( var j=0; j<datalist[i].length; j++)
-							if( datalist[i][j].file)
-							if( allow_load(i,datalist[i][j]))
-								datafile_depend.push(filepath(datalist[i][j].file));
-					}
-					else if( typeof datalist[i]==='object')
-					{
-						if( datalist[i].file)
-						if( allow_load(i,datalist[i]))
-							datafile_depend.push(filepath(datalist[i].file));
-					}
-				}
+				for( var i=0; i<datalist.background.length; i++)
+					datafile_depend.push(path+normalize_file(datalist.background[i].file));
+
+				datafile_depend.push(path+normalize_file(datalist.UI.file));
 
 				require( datafile_depend, function()
 				{
-					var gamedata=Futil.extend_object({},datalist);
-					var param = 0;
-
-					for( var i in datalist)
+					var gamedata={};
+					for ( var i in datalist)
 					{
-						if( datalist[i] instanceof Array)
-						{
-							for( var j=0; j<datalist[i].length; j++)
-								if( datalist[i][j].file)
-								{
-									if( allow_load(i,datalist[i][j]))
-									{
-										gamedata[i][j].data = arguments[param];
-										param++;
-									}
-									else
-									{
-										gamedata[i][j].data = 'lazy';
-									}
-								}
-						}
-						else if( typeof datalist[i]==='object')
-						{
-							if( datalist[i].file)
-							{
-								if( allow_load(i,datalist[i]))
-								{
-									gamedata[i].data = arguments[param];
-									param++;
-								}
-								else
-								{
-									gamedata[i].data = 'lazy';
-								}
-							}
-						}
+						if( i==='object')
+							gamedata[i]=[];
+						else if( i==='background')
+							gamedata[i]=[];
+						else
+							gamedata[i]=datalist[i];
 					}
+					for( var i=0, j=0; i<datalist.object.length; i++)
+					{
+						var O = datalist.object[i];
+						var obj=
+						{
+							id: O.id,
+							type: O.type
+						};
+						if( allow_load(O))
+						{
+							obj.data = arguments[j];
+							j++
+						}
+						else
+						{
+							obj.data = 'lazy';
+							obj.file = path+normalize_file(O.file);
+						}
+
+						gamedata.object.push(obj);
+					}
+					for( var i=0; i<datalist.background.length; i++,j++)
+					{
+						var O = datalist.background[i];
+						gamedata.background.push({
+							id: O.id,
+							data: arguments[j]
+						});
+					}
+					gamedata.UI = arguments[j];
 
 					content.data=gamedata;
 					module_lazyload();
@@ -139,7 +145,7 @@ define(['LF/global','F.core/util'],function(global,Futil){
 			}
 			function load_something(thing)
 			{
-				require( [filepath(manifest[thing])], function(it){
+				require( [path+normalize_file(manifest[thing])], function(it){
 					content[thing] = it;
 					load_ready();
 				});
@@ -149,6 +155,7 @@ define(['LF/global','F.core/util'],function(global,Futil){
 				var content_schema=
 				{
 					data:'object',
+					properties:'object',
 					resourcemap:'object!optional',
 					location:'string'
 				}
@@ -159,39 +166,32 @@ define(['LF/global','F.core/util'],function(global,Futil){
 			{	//embed the lazyload module
 				if( typeof global.lazyload==='function')
 				{
-					content.data.load=function(sets,ready)
+					content.data.object.load=function(ID,ready)
 					{
+						var objects=content.data.object;
 						var load_list=[];
 						var res_list=[];
-						for( var folder in sets)
+						for( var i=0; i<ID.length; i++)
 						{
-							var objects=content.data[folder];
-							var ID = sets[folder];
-							for( var i=0; i<ID.length; i++)
-							{
-								var O; //search for the object
-								for( var j=0; j<objects.length; j++)
-									if( objects[j].id===ID[i])
-									{
-										O=objects[j];
-										break;
-									}
-								if( O && O.file && O.data==='lazy')
+							var O; //search for the object
+							for( var j=0; j<objects.length; j++)
+								if( objects[j].id===ID[i])
 								{
-									load_list.push(O);
-									res_list .push(filepath(O.file));
+									O=objects[j];
+									break;
 								}
+							if( O && O.data==='lazy')
+							{
+								load_list.push(O);
+								res_list .push(O.file);
 							}
 						}
-						if( res_list.length===0)
-							setTimeout(ready,1);
-						else
-							requirejs(res_list,function()
-							{
-								for( var i=0; i<arguments.length; i++)
-									load_list[i].data = arguments[i];
-								ready();
-							});
+						requirejs(res_list,function()
+						{
+							for( var i=0; i<arguments.length; i++)
+								load_list[i].data = arguments[i];
+							ready();
+						});
 					}
 				}
 			}

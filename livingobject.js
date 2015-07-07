@@ -3,8 +3,8 @@
  * 
  * a base class for all living objects
 \*/
-define(['LF/global','LF/sprite','LF/mechanics','LF/AI','LF/util','LF/sprite-select','F.core/util'],
-function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
+define(['LF/global','LF/sprite','LF/mechanics','LF/util','F.core/sprite'],
+function ( Global, Sprite, Mech, util, Fsprite)
 {
 	var GC=Global.gameplay;
 
@@ -35,12 +35,13 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 
 		//handles
 		$.match=config.match;
+		$.spec=$.match.spec;
 		$.scene=$.match.scene;
+		$.visualeffect=$.match.visualeffect;
 		$.bg=$.match.background;
 
 		//states
 		$.sp = new Sprite(data.bmp, $.match.stage);
-		$.sp.width = data.bmp.file[0].w;
 		if( !$.proper('no_shadow'))
 		{
 			var sp_sha=
@@ -67,7 +68,6 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 			}
 		};
 		$.mech = new Mech($);
-		$.AI = new AI.interface($);
 		$.ps = $.mech.create_metric(); //position, velocity, and other physical properties
 		$.trans = new frame_transistor($);
 		$.itr=
@@ -84,8 +84,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 			blink: false, //blink: hide 2 TU, show 2 TU ,,, until effect vanishs
 			super: false, //when an object is in state 'super', it does not return body volume, such that it cannot be hit
 			timein: 0, //time to take effect
-			timeout: 0, //time to lose effect
-			heal: undefined
+			timeout: 0 //time to lose effect
 		};
 		$.catching= 0; //state 9: the object being caught by me now
 					//OR state 10: the object catching me now
@@ -131,9 +130,6 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 
 		//state generic then specific update
 		$.state_update('frame');
-		
-		if( $.frame.D.sound)
-			$.match.sound.play($.frame.D.sound);
 	}
 
 	livingobject.prototype.frame_force = function()
@@ -150,9 +146,6 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		}
 		if( $.frame.D.dvz) $.ps.vz = $.dirv() * $.frame.D.dvz;
 		if( $.frame.D.dvy) $.ps.vy += $.frame.D.dvy;
-		if( $.frame.D.dvx===550) $.ps.vx = 0;
-		if( $.frame.D.dvy===550) $.ps.vy = 0;
-		if( $.frame.D.dvz===550) $.ps.vz = 0;
 	}
 
 	//update done at every TU (30fps)
@@ -227,16 +220,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		else
 			$.state_update('TU');
 
-		if( $.health.hp<=0)
-			if( !$.dead)
-			{
-				$.state_update('die');
-				$.dead = true
-			}
-
-		if( $.bg.leaving($))
-			$.state_update('leaving');
-
+		//attack rest
 		for( var I in $.itr.vrest)
 		{	//watch out that itr.vrest might grow very big
 			if( $.itr.vrest[I] > 0)
@@ -263,6 +247,9 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		var $=this;
 		//state
 		$.TU_update();
+		//combo detector
+		if( $.con)
+			$.combodec.frame();
 	}
 
 	livingobject.prototype.transit=function()
@@ -271,7 +258,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		//fetch inputs
 		if( $.con)
 		{
-			//$.con.fetch(); //match is responsible for fetching
+			$.con.fetch();
 			$.combo_update();
 		}
 		//frame transition
@@ -298,7 +285,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		return this.mech.body();
 	}
 
-	livingobject.prototype.state=function()
+	livingobject.prototype.cur_state=function()
 	{
 		return this.frame.D.state;
 	}
@@ -350,7 +337,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		}
 	}
 
-	livingobject.prototype.visualeffect_create=function(num, rect, righttip, variant, with_sound)
+	livingobject.prototype.visualeffect_create=function(num, rect, righttip, variant)
 	{
 		var $=this;
 		var efid= num+GC.effect.num_to_id;
@@ -360,7 +347,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 			y: rect.y+ rect.vy+ rect.h/2,
 			z: rect.z>$.ps.z ? rect.z:$.ps.z
 		}
-		$.match.visualeffect.create(efid,pos,variant,with_sound);
+		$.visualeffect.create(pos,efid,variant);
 	}
 
 	//animate back and forth between frame a and b
@@ -394,29 +381,25 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 			$f.ani.i=a;
 	}
 
-	livingobject.prototype.itr_arest_test=function()
+	livingobject.prototype.itr_rest_update=function(uid,ITR)
 	{
 		var $=this;
-		return !$.itr.arest;
-	}
-	livingobject.prototype.itr_arest_update=function(ITR)
-	{
-		var $=this;
-		if( ITR && ITR.arest)
-			$.itr.arest = ITR.arest;
+		//rest: cannot interact again for some time
+		if( ITR && (ITR.arest || ITR.vrest))
+		{
+			if( ITR.arest)
+				$.itr.arest = ITR.arest;
+			else if( ITR.vrest)
+				$.itr.vrest[uid] = ITR.vrest;
+		}
 		else
 			$.itr.arest = GC.default.character.arest;
 	}
-	livingobject.prototype.itr_vrest_test=function(uid)
+
+	livingobject.prototype.itr_rest_test=function(uid,ITR)
 	{
 		var $=this;
-		return !$.itr.vrest[uid];
-	}
-	livingobject.prototype.itr_vrest_update=function(attacker_uid,ITR)
-	{
-		var $=this;
-		if( ITR && ITR.vrest)
-			$.itr.vrest[attacker_uid] = ITR.vrest;
+		return !$.itr.arest && !$.itr.vrest[uid];
 	}
 
 	livingobject.prototype.switch_dir = function(e)
@@ -460,13 +443,14 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 			prop=id;
 			id=$.id;
 		}
-		if( $.match.spec[id])
-			return $.match.spec[id][prop];
+		if( $.spec[id])
+			return $.spec[id][prop];
 		return undefined;
 	}
 
 	function frame_transistor($)
 	{
+		/*DC*/
 		var wait=1; //when wait decreases to zero, a frame transition happens
 		var next=999; //next frame
 		var lock=0;
@@ -486,13 +470,10 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 		//    25: hit by special attack
 		// 3x: strong interactions
 		//    30: in effect type 0
-		//    35: blast
-		//    36: fire
-		//    38: ice
+		//    35: fire, ice, blast
 
 		this.frame=function(F,au)
 		{
-			//console.log('frame', F, au, arguments.callee.caller.toString()) //trace caller
 			this.set_next(F,au);
 			this.set_wait(0,au);
 		}
@@ -591,8 +572,6 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 						$.match.destroy_object($);
 						return;
 					}
-					if( $.health.hp<=0 && $.frame.D.state===14)
-						return;
 
 					if( next===999)
 						next=0;
@@ -609,8 +588,7 @@ function ( Global, Sprite, Mech, AI, util, Fsprite, Futil)
 
 					if( is_trans)
 					{
-						for( var I in $.statemem)
-							$.statemem[I] = undefined;
+						$.statemem = {};
 						var old_switch_dir=$.allow_switch_dir;
 						if( $.states_switch_dir && $.states_switch_dir[$.frame.D.state] !== undefined)
 							$.allow_switch_dir=$.states_switch_dir[$.frame.D.state];

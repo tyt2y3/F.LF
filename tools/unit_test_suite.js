@@ -1,17 +1,19 @@
-(function (){
-
-var flf_config = {"location":"../../","package":"LFrelease/LF2_19"};
 requirejs.config(
 {
-	baseUrl: flf_config.location
+	baseUrl: '../../',
+	config:
+	{
+		'F.core/sprite':
+		{
+			disable_css2dtransform: true
+		}
+	}
 });
-
-requirejs(['LF/sprite-select','F.core/util','F.core/math','F.core/resourcemap',
-'LF/sprite','LF/match','LF/soundpack','LF/loader!'+flf_config.package,'LF/global','LF/util',
-'test_cases',
-'F.core/css!LF/tools/tools.css'],
-function(Fsprite,Futil,Fmath,Fresourcemap,
-Sprite,Match,Soundpack,package,global,util,
+requirejs(['F.core/sprite','F.core/util','F.core/math','F.core/css!LF/tools/tools.css',
+'LF/sprite','LF/loader!packages','LF/match','LF/util',
+'test_cases'],
+function(Fsprite,Futil,Fmath,cssloaded,
+Sprite,package,Match,util,
 test_cases){
 
 	(function(){
@@ -19,36 +21,20 @@ test_cases){
 	var DOC=
 	"<div class='Fbar'>F.LF/unit test suite <a href='https://docs.google.com/spreadsheet/lv?key=0AqAWO3FZ2ZFrdGZBa2xDNzdDeVdhNU9UQVMtaklpQXc&type=view&gid=0&f=false&sortcolid=20&sortasc=false&rowsperpage=250'>log</a><a href='../docs/unit_test_suite.html'>Help</a></div>"+
 	"<div id='overall'></div>"+
-	"<div class='LFroot'>"+
-	"	<div class='container'>"+
-	"		<div id='window' class='window'>"+
-	"			<div class='gameplay'>"+
-	"				<canvas class='canvas' width='0' height='0'></canvas>"+
-	"			</div>"+
-	"		</div>"+
-	"	</div>"+
-	"</div>"+
+	"<div id='stage' class='canvas'></div>"+
 	"<div id='data'></div>";
 	var doc = document.createElement('div');
 	doc.innerHTML=DOC;
 	var body = document.getElementsByTagName('body')[0];
 	body.insertBefore(doc,body.firstChild);
 	}());
-	
-	//setup resource map
-	util.organize_package(package);
-	var resourcemap = new Fresourcemap(util.setup_resourcemap(package));
-	Fsprite.masterconfig_set('resourcemap',resourcemap);
-	
+
+	util.setup_resourcemap(package,Fsprite);
 	var test_cases=test_cases.test_cases;
 	var cur_scenario=test_cases.length;
 	var d_data = document.getElementById('data'),
+		d_stage = document.getElementById('stage'),
 		d_overall = document.getElementById('overall');
-	var manager =
-	{
-		canvas:get_canvas(),
-		sound:new Soundpack(null)
-	};
 	var passing_delta = 10;
 	var case_start_delay = 30;
 	var overall =
@@ -58,29 +44,6 @@ test_cases){
 		delta:0
 	};
 
-	function get_canvas()
-	{
-		if( Fsprite.renderer==='DOM')
-		{
-			return new Fsprite({
-				div:util.div('gameplay'),
-				type:'group',
-				wh:{w:global.application.window.width,h:global.application.window.height}
-			});
-		}
-		else if( Fsprite.renderer==='canvas')
-		{
-			var canvas_node = util.div('gameplay').getElementsByClassName('canvas')[0];
-			canvas_node.width = global.application.window.width;
-			canvas_node.height = global.application.window.height;
-			return new Fsprite({
-				canvas:canvas_node,
-				type:'group',
-				wh:{w:global.application.window.width,h:global.application.window.height}
-			})
-		}
-	}
-	
 	//RTcontroller is a F.core compatible controller to simulate keyboard input from pre-defined data
 	function RTcontroller()
 	{
@@ -162,7 +125,6 @@ test_cases){
 		$.seq=seq;
 		$.t=-case_start_delay;
 	}
-	RTcontroller.prototype.type = 'keyboard'; //fake
 
 	function Testcase(config)
 	{
@@ -182,11 +144,15 @@ test_cases){
 
 		$.match = new Match
 		({
-			manager: manager,
+			stage: d_stage,
 			state:
 			{
-				event:function(E){ $.event(E) }
+				event:function(E)
+				{
+					$.event(E);
+				}
 			},
+			config: null,
 			package: package
 		});
 		$.match.create
@@ -462,7 +428,7 @@ test_cases){
 				char_list.push(players[h].id);
 			}
 			//note that the `load` function is async
-			package.data.load({'object':char_list},function()
+			package.data.object.load(char_list,function()
 			{	//loaded
 				for( var h=0; h<num_player; h++)
 				{	//store the data file
@@ -570,8 +536,7 @@ test_cases){
 		cur_scenario--;
 		if( cur_scenario<0)
 		{	//all scenario finished
-			document.getElementById('window').style.display='none';
-			if( !window.location.href.match('no_log'))
+			d_stage.style.display='none';
 			submit_log([
 					window.location.href.slice(window.location.href.lastIndexOf('/')+1),
 					overall.passed,overall.finished,overall.delta,
@@ -627,5 +592,3 @@ test_cases){
 		make_table();
 	}());
 });
-
-}());
